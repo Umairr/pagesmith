@@ -1,0 +1,18 @@
+# secrets
+.env
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+dist/
+build/
+
+# generated runs (pages, boards, logs)
+runs/
+
+# os / editors
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,20 @@
+{
+  "product": "StayFit Studio",
+  "tagline": "Strength training that fits your week.",
+  "description": "StayFit Studio is a strength training app that builds a personal workout plan around the time and equipment you actually have. Short guided sessions, progress tracking and a coach who adjusts your plan every week.",
+  "features": [
+    "Personal workout plan built around your schedule",
+    "20 to 40 minute guided sessions with video demos",
+    "Works with dumbbells, bands or bodyweight only",
+    "Weekly check-ins with a certified coach",
+    "Progress tracking for strength, streaks and body measurements"
+  ],
+  "pricing": [
+    {"name": "Monthly", "price": "$14/month", "includes": ["Personal plan", "Guided sessions", "Progress tracking"]},
+    {"name": "Yearly", "price": "$99/year", "includes": ["Everything in Monthly", "Coach check-ins", "Two months free"]}
+  ],
+  "keywords": ["strength training app", "home workout plan", "personal trainer", "build muscle"],
+  "audiences": ["Busy parents with 30 minutes a day", "Beginners who have never lifted weights", "Remote workers training at home"],
+  "call_to_action": "Start your free week",
+  "tone": "encouraging, practical, no gym jargon"
+}

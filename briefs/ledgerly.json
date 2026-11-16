@@ -1,0 +1,22 @@
+{
+  "product": "Ledgerly",
+  "tagline": "Invoices that chase themselves.",
+  "description": "Ledgerly is online invoicing software for small businesses and freelancers. Create branded invoices in seconds, accept card and bank payments, and let automatic reminders follow up on late payments so you get paid faster without awkward emails.",
+  "features": [
+    "Branded invoice templates with your logo and colours",
+    "Automatic payment reminders on a schedule you choose",
+    "Card, bank transfer and Apple Pay checkout on every invoice",
+    "Recurring invoices for retainers and subscriptions",
+    "Multi-currency invoicing with live exchange rates",
+    "Cash-flow dashboard showing what is due, paid and overdue"
+  ],
+  "pricing": [
+    {"name": "Starter", "price": "$0/month", "includes": ["5 invoices a month", "Card payments", "Email reminders"]},
+    {"name": "Growth", "price": "$19/month", "includes": ["Unlimited invoices", "Recurring invoices", "Multi-currency", "Custom branding"]},
+    {"name": "Team", "price": "$49/month", "includes": ["Everything in Growth", "5 team seats", "Approval workflows", "Priority support"]}
+  ],
+  "keywords": ["online invoicing software", "get paid faster", "automatic payment reminders", "recurring invoices", "small business"],
+  "audiences": ["Freelance designers and developers", "Small agencies with a few clients on retainer", "Local service businesses such as plumbers and cleaners", "Accountants who manage invoicing for clients"],
+  "call_to_action": "Start free trial",
+  "tone": "friendly, confident, plain English"
+}

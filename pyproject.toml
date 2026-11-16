@@ -1,0 +1,42 @@
+[project]
+name = "pagesmith"
+version = "0.1.0"
+description = "A multi-agent landing page studio: parallel builders, an automated audit score, and a feedback loop that keeps iterating until every page clears the bar."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Agha Umair Ahmed" }]
+requires-python = ">=3.12"
+dependencies = [
+    "agent-framework-core>=1.8.1",
+    "agent-framework-openai>=1.8.1",
+    "agno>=2.6.14",
+    "beautifulsoup4>=4.12",
+    "fastapi>=0.115",
+    "google-adk[extensions]>=2.2.0",
+    # litellm 1.106+ needs mcp>=2, which clashes with the agent frameworks above.
+    "litellm<1.106",
+    "openai>=2.0",
+    "pydantic>=2.10",
+    "pydantic-ai-slim[openai]>=1.107.0",
+    "python-dotenv>=1.0",
+    "rich>=13.9",
+    "strands-agents[openai]>=1.43.0",
+    "uvicorn[standard]>=0.30",
+]
+
+[project.scripts]
+pagesmith = "pagesmith.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8.3", "httpx>=0.27"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pagesmith"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

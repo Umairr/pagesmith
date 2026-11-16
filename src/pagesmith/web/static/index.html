@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pagesmith · Landing page studio</title>
+  <meta name="description" content="Build, score and iterate on landing page variants with a team of parallel builders.">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--accent)"/><path d="M9 23V9h7.5a4.5 4.5 0 0 1 0 9H13" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="22.5" cy="22.5" r="2.2" fill="#fff"/></svg>
+      <span>Pagesmith</span>
+    </a>
+    <nav class="topnav">
+      <a href="#/" data-nav="runs">Runs</a>
+      <a href="#/new" data-nav="new">New run</a>
+      <a href="/api/docs" target="_blank" rel="noopener">API</a>
+    </nav>
+    <button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle theme">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" fill="currentColor"/></svg>
+    </button>
+  </header>
+
+  <main id="view" class="container" aria-live="polite"></main>
+
+  <div class="modal" id="modal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-head">
+        <h2 id="modal-title"></h2>
+        <div class="modal-actions">
+          <a class="btn btn-ghost btn-sm" id="modal-open" target="_blank" rel="noopener">Open in new tab</a>
+          <button class="icon-btn" type="button" data-close aria-label="Close">✕</button>
+        </div>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <template id="tpl-empty">
+    <div class="empty">
+      <div class="empty-art" aria-hidden="true"></div>
+      <h2>No runs yet</h2>
+      <p>Start a run from a product brief. Builders work in parallel, every page is scored, and the lead keeps sending work back until the target is met.</p>
+      <a class="btn btn-primary" href="#/new">Start your first run</a>
+    </div>
+  </template>
+</body>
+</html>

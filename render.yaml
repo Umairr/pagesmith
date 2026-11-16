@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: pagesmith
+    runtime: docker
+    plan: starter
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: PAGESMITH_ACCESS_TOKEN
+        generateValue: true
+      - key: PAGESMITH_TARGET_SCORE
+        value: "95"
+      - key: PAGESMITH_MAX_ROUNDS
+        value: "3"
+    disk:
+      name: pagesmith-runs
+      mountPath: /data
+      sizeGB: 1
