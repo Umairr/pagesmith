@@ -65,7 +65,7 @@ button { font: inherit; }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 16px; text-decoration: none; }
 .brand-mark { width: 28px; height: 28px; }
 .topnav { display: flex; gap: 4px; flex: 1; }
-.topnav a { padding: 6px 12px; border-radius: 8px; color: var(--text-2); text-decoration: none; font-weight: 500; font-size: 14px; }
+.topnav a { white-space: nowrap; padding: 6px 12px; border-radius: 8px; color: var(--text-2); text-decoration: none; font-weight: 500; font-size: 14px; }
 .topnav a:hover { background: var(--surface-2); color: var(--text); }
 .topnav a.active { background: var(--accent-soft); color: var(--accent); }
 .icon-btn {
@@ -246,13 +246,50 @@ input[type="text"], input[type="password"], input[type="number"], select, textar
   width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border);
   background: var(--bg); color: var(--text); font: inherit; font-size: 14px;
 }
-textarea { font-family: var(--mono); font-size: 12.5px; line-height: 1.5; min-height: 420px; resize: vertical; }
+textarea { font: inherit; font-size: 14px; line-height: 1.5; resize: vertical; }
+#brief-json { font-family: var(--mono); font-size: 12.5px; min-height: 520px; }
 input:focus, select:focus, textarea:focus { outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); border-color: var(--accent); }
 input[type="range"] { width: 100%; accent-color: var(--accent); }
 .check-list { display: grid; gap: 8px; }
 .check-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; font-size: 14px; }
 .check-item input { accent-color: var(--accent); width: 16px; height: 16px; }
 .range-value { font-weight: 700; color: var(--accent); }
+.alert ul { margin: 6px 0 0; padding-left: 18px; }
+.alert li { margin: 2px 0; }
+.brief-toolbar { display: flex; align-items: flex-end; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.segmented { display: inline-flex; padding: 3px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; }
+.segmented button { border: 0; background: none; padding: 7px 14px; border-radius: 7px; font: inherit; font-size: 13px; font-weight: 600; color: var(--text-2); cursor: pointer; }
+.segmented button.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.form-section { padding: 18px 0 6px; border-bottom: 1px solid var(--border); }
+.form-section:last-child { border-bottom: 0; padding-bottom: 0; }
+.form-section h3 { margin: 0 0 12px; font-size: 15px; }
+.form-section > .help { margin: -8px 0 12px; font-size: 12.5px; color: var(--text-3); }
+.section-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.section-row .count { font-size: 12.5px; color: var(--text-3); }
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.list-rows { display: grid; gap: 8px; }
+.list-row { display: flex; align-items: center; gap: 8px; }
+.list-row input { flex: 1; }
+.list-num { width: 20px; text-align: right; font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.icon-x { flex: none; width: 32px; height: 32px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--text-3); font-size: 18px; line-height: 1; cursor: pointer; }
+.icon-x:hover { background: var(--bad-soft); color: var(--bad); }
+.link-btn { margin: 10px 0 12px 28px; padding: 6px 10px; border: 1px dashed var(--border); border-radius: 8px; background: none; color: var(--accent); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.link-btn:hover { background: var(--accent-soft); border-color: var(--accent); }
+.tiers + .link-btn { margin-left: 0; }
+.tag-box { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 42px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); cursor: text; margin-bottom: 12px; }
+.tag-box:focus-within { outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); border-color: var(--accent); }
+.tag-box input[type="text"] { flex: 1; min-width: 160px; border: 0; padding: 4px; background: none; outline: none; }
+.tag { display: inline-flex; align-items: center; gap: 4px; padding: 4px 4px 4px 10px; border-radius: 7px; background: var(--surface-2); font-size: 13px; }
+.tag.primary { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.tag button { border: 0; background: none; color: inherit; opacity: .6; width: 20px; height: 20px; border-radius: 5px; cursor: pointer; font-size: 15px; line-height: 1; }
+.tag button:hover { opacity: 1; background: color-mix(in srgb, currentColor 12%, transparent); }
+.tiers { display: grid; gap: 10px; }
+.tier { padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+.tier .tag-box { margin-bottom: 0; }
+.tier-head { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-bottom: 8px; }
+.invalid, .invalid input, input.invalid, textarea.invalid, .tag-box.invalid { border-color: var(--bad) !important; }
+.list-rows.invalid { outline: 1px solid var(--bad); outline-offset: 4px; border-radius: 10px; }
+.sticky-card { position: sticky; top: 84px; }
 .alert { padding: 10px 14px; border-radius: 10px; background: var(--bad-soft); color: var(--bad); font-size: 13.5px; margin-bottom: 14px; }
 
 .empty { text-align: center; padding: 72px 24px; max-width: 520px; margin: 0 auto; }
@@ -265,9 +302,15 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 @media (max-width: 960px) {
   .kpis { grid-template-columns: repeat(2, 1fr); }
   .two-col, .form-grid { grid-template-columns: 1fr; }
+  .sticky-card { position: static; }
   .audit-cats { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 560px) {
+  .row-2 { grid-template-columns: 1fr; }
+  .tier-head { grid-template-columns: 1fr auto; }
+  .tier-head .icon-x { grid-column: 2; grid-row: 1; }
+  .tier-head [data-tier-key="price"] { grid-column: 1; grid-row: 2; }
+  .brief-toolbar { flex-wrap: wrap; }
   .topbar { gap: 12px; }
   .topnav a { padding: 6px 8px; }
   .runs-table th:nth-child(4), .runs-table td:nth-child(4) { display: none; }

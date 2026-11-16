@@ -308,63 +308,297 @@ async function showAudit(state, key) {
 }
 
 /* ---------- new run ---------- */
+const BLANK_BRIEF = {
+  product: "", tagline: "", description: "", features: ["", "", ""], pricing: [],
+  keywords: [], audiences: [""], call_to_action: "Start free trial", tone: "confident, clear, no hype",
+};
+
+function normaliseBrief(b = {}) {
+  return {
+    ...BLANK_BRIEF, ...b,
+    features: [...(b.features || BLANK_BRIEF.features)],
+    keywords: [...(b.keywords || [])],
+    audiences: [...(b.audiences || BLANK_BRIEF.audiences)],
+    pricing: (b.pricing || []).map((t) => ({ name: t.name || "", price: t.price || "", includes: [...(t.includes || [])] })),
+  };
+}
+
+function cleanBrief(d) {
+  const list = (xs) => xs.map((x) => String(x).trim()).filter(Boolean);
+  return {
+    product: d.product.trim(), tagline: d.tagline.trim(), description: d.description.trim(),
+    features: list(d.features), keywords: list(d.keywords), audiences: list(d.audiences),
+    pricing: d.pricing
+      .map((t) => ({ name: t.name.trim(), price: t.price.trim(), includes: list(t.includes) }))
+      .filter((t) => t.name || t.price),
+    call_to_action: d.call_to_action.trim() || BLANK_BRIEF.call_to_action,
+    tone: d.tone.trim() || BLANK_BRIEF.tone,
+  };
+}
+
+function briefProblems(b) {
+  const out = [];
+  if (!b.product) out.push(["f-product", "Give the product a name."]);
+  if (!b.tagline) out.push(["f-tagline", "Add a one-line tagline."]);
+  if (!b.description) out.push(["f-description", "Describe what the product does."]);
+  if (b.features.length < 3) out.push(["list-features", `List at least 3 features (${b.features.length} so far).`]);
+  if (!b.audiences.length) out.push(["list-audiences", "Add at least one audience."]);
+  if (!b.keywords.length) out.push(["tags-keywords", "Add at least one search keyword."]);
+  b.pricing.forEach((t, i) => { if (!t.name || !t.price) out.push([`tier-${i}`, `Pricing plan ${i + 1} needs a name and a price.`]); });
+  return out;
+}
+
+const getPath = (obj, path) => path.split(".").reduce((o, k) => o[k], obj);
+
+function textInput(id, key, value, placeholder) {
+  return `<input type="text" id="${id}" data-key="${key}" value="${esc(value)}" placeholder="${esc(placeholder)}">`;
+}
+
+function listRows(name, items, placeholder, addLabel) {
+  const rows = items.map((v, i) => `
+    <div class="list-row">
+      <span class="list-num">${i + 1}</span>
+      <input type="text" data-list="${name}" data-index="${i}" value="${esc(v)}" placeholder="${esc(placeholder)}">
+      <button type="button" class="icon-x" data-remove="${name}" data-index="${i}" aria-label="Remove">×</button>
+    </div>`).join("");
+  return `<div class="list-rows" id="list-${name}">${rows}</div>
+    <button type="button" class="link-btn" data-add="${name}">+ ${esc(addLabel)}</button>`;
+}
+
+function tagBox(path, tags, placeholder, id = "") {
+  const chips = tags.map((t, i) => `
+    <span class="tag${i === 0 && path === "keywords" ? " primary" : ""}">${esc(t)}<button type="button" data-tag-remove="${path}" data-index="${i}" aria-label="Remove ${esc(t)}">×</button></span>`).join("");
+  return `<div class="tag-box"${id ? ` id="${id}"` : ""}>${chips}<input type="text" data-tags="${path}" placeholder="${esc(tags.length ? "Add another…" : placeholder)}"></div>`;
+}
+
+function tierCard(t, i) {
+  return `
+    <div class="tier" id="tier-${i}">
+      <div class="tier-head">
+        <input type="text" data-tier="${i}" data-tier-key="name" value="${esc(t.name)}" placeholder="Plan name, e.g. Growth">
+        <input type="text" data-tier="${i}" data-tier-key="price" value="${esc(t.price)}" placeholder="Price, e.g. $19/month">
+        <button type="button" class="icon-x" data-remove-tier="${i}" aria-label="Remove plan">×</button>
+      </div>
+      ${tagBox(`pricing.${i}.includes`, t.includes, "What's included? Type and press Enter")}
+    </div>`;
+}
+
+function briefEditor(d) {
+  return `
+    <section class="form-section">
+      <h3>Product</h3>
+      <div class="field"><label for="f-product">Product name</label>${textInput("f-product", "product", d.product, "e.g. Ledgerly")}</div>
+      <div class="field"><label for="f-tagline">Tagline</label>${textInput("f-tagline", "tagline", d.tagline, "e.g. Invoices that chase themselves.")}</div>
+      <div class="field"><label for="f-description">Description</label>
+        <textarea id="f-description" data-key="description" rows="4" placeholder="What it is, who it's for, and why it's better. Two or three sentences.">${esc(d.description)}</textarea></div>
+      <div class="row-2">
+        <div class="field"><label for="f-cta">Call to action</label>${textInput("f-cta", "call_to_action", d.call_to_action, "Start free trial")}</div>
+        <div class="field"><label for="f-tone">Tone of voice</label>${textInput("f-tone", "tone", d.tone, "friendly, confident, plain English")}</div>
+      </div>
+    </section>
+    <section class="form-section">
+      <div class="section-row"><h3>Features</h3><span class="count">${d.features.filter((x) => x.trim()).length} added · 3 minimum</span></div>
+      <p class="help">What the product does, one per line. Builders turn these into the features section.</p>
+      ${listRows("features", d.features, "e.g. Automatic payment reminders", "Add feature")}
+    </section>
+    <section class="form-section">
+      <div class="section-row"><h3>Audiences</h3><span class="count" id="aud-count"></span></div>
+      <p class="help">Who you're selling to. Each audience gets its own page from a different builder.</p>
+      ${listRows("audiences", d.audiences, "e.g. Freelance designers and developers", "Add audience")}
+    </section>
+    <section class="form-section">
+      <div class="section-row"><h3>Search keywords</h3><span class="count">${d.keywords.length ? "First one is the primary keyword" : ""}</span></div>
+      <p class="help">Phrases people search for. Type one and press Enter. Every page is checked for them.</p>
+      ${tagBox("keywords", d.keywords, "e.g. online invoicing software", "tags-keywords")}
+    </section>
+    <section class="form-section">
+      <div class="section-row"><h3>Pricing</h3><span class="count">Optional</span></div>
+      <p class="help">Plans shown in the pricing section. Leave empty and builders will skip prices.</p>
+      <div class="tiers">${d.pricing.map(tierCard).join("")}</div>
+      <button type="button" class="link-btn" data-add-tier>+ Add plan</button>
+    </section>`;
+}
+
 async function renderNew() {
   const briefs = meta.briefs || [];
   view.innerHTML = `
     <div class="page-head"><div><h1>New run</h1><p>Describe the product once. Each builder takes a different audience, and the lead keeps sending pages back until they reach the target score.</p></div></div>
-    <form class="form-grid" id="new-run">
+    <form class="form-grid" id="new-run" novalidate>
       <div class="card card-pad">
-        <div class="field">
-          <label for="sample">Start from a sample brief</label>
-          <select id="sample">${briefs.map((b) => `<option value="${esc(b)}">${esc(b)}</option>`).join("")}</select>
+        <div class="brief-toolbar">
+          <div class="field" style="margin:0;flex:1">
+            <label for="sample">Start from</label>
+            <select id="sample"><option value="">Blank brief</option>${briefs.map((b) => `<option value="${esc(b)}">Sample: ${esc(b)}</option>`).join("")}</select>
+          </div>
+          <div class="segmented" role="tablist" aria-label="Editor mode">
+            <button type="button" class="active" data-mode="form">Form</button>
+            <button type="button" data-mode="json">JSON</button>
+          </div>
         </div>
-        <div class="field">
-          <label for="brief">Product brief (JSON)</label>
-          <textarea id="brief" spellcheck="false"></textarea>
-          <span class="help">Required: product, tagline, description, features (3+), keywords, audiences. One variant is built per audience.</span>
+        <div id="brief-editor"></div>
+        <div id="brief-json-wrap" hidden>
+          <textarea id="brief-json" spellcheck="false" aria-label="Product brief as JSON"></textarea>
+          <span class="help">Paste a brief you already have. Switch back to Form to keep editing it there.</span>
         </div>
       </div>
-      <div class="card card-pad">
+      <div class="card card-pad sticky-card">
         <div id="form-error"></div>
         <div class="field">
           <label for="target">Target score <span class="range-value" id="target-val">${meta.target}</span></label>
           <input type="range" id="target" min="70" max="100" value="${meta.target}">
+          <span class="help">Every page has to reach this on the 100-point audit.</span>
         </div>
         <div class="field">
           <label for="rounds">Rounds per builder</label>
           <input type="number" id="rounds" min="1" max="5" value="${meta.rounds}">
-          <span class="help">The first build plus up to this many revisions in total.</span>
+          <span class="help">The first build plus revisions, in total.</span>
         </div>
         <div class="field">
           <label>Builders</label>
           <div class="check-list">${meta.builders.map((b) => `
             <label class="check-item"><input type="checkbox" name="builder" value="${esc(b.key)}" checked><i class="dot" style="background:${b.colour}"></i>${esc(b.name)}</label>`).join("")}</div>
+          <span class="help" id="variant-note"></span>
         </div>
         ${meta.token_required ? `<div class="field"><label for="token">Access token</label><input type="password" id="token" autocomplete="off"><span class="help">This deployment requires a token to start runs.</span></div>` : ""}
         <button class="btn btn-primary" type="submit" style="width:100%;justify-content:center">Start run</button>
       </div>
     </form>`;
 
+  let draft = normaliseBrief(BLANK_BRIEF);
+  let mode = "form";
+  const editor = document.getElementById("brief-editor");
+  const jsonWrap = document.getElementById("brief-json-wrap");
+  const jsonBox = document.getElementById("brief-json");
+  const error = document.getElementById("form-error");
+
+  const updateNotes = () => {
+    const audiences = draft.audiences.filter((a) => a.trim()).length;
+    const builders = document.querySelectorAll("input[name=builder]:checked").length;
+    const pages = Math.min(audiences, builders);
+    const count = document.getElementById("aud-count");
+    if (count) count.textContent = `${audiences} ${audiences === 1 ? "audience" : "audiences"}`;
+    const note = document.getElementById("variant-note");
+    if (!pages) note.textContent = builders ? "Add an audience to build a page." : "Pick at least one builder.";
+    else if (audiences > builders) note.textContent = `${pages} pages: the first ${builders} ${builders === 1 ? "audience" : "audiences"} get a builder each.`;
+    else note.textContent = `${pages} ${pages === 1 ? "page" : "pages"}, one per audience.`;
+  };
+
+  const render = (focus) => {
+    editor.innerHTML = briefEditor(draft);
+    updateNotes();
+    if (focus) editor.querySelector(focus)?.focus();
+  };
+
+  const addTag = (input) => {
+    const value = input.value.trim().replace(/,$/, "").trim();
+    if (!value) return false;
+    const tags = getPath(draft, input.dataset.tags);
+    if (!tags.includes(value)) tags.push(value);
+    input.value = "";
+    render(`[data-tags="${input.dataset.tags}"]`);
+    return true;
+  };
+
+  editor.addEventListener("input", (e) => {
+    const t = e.target;
+    t.closest(".invalid")?.classList.remove("invalid");
+    t.classList.remove("invalid");
+    if (t.dataset.key) draft[t.dataset.key] = t.value;
+    else if (t.dataset.list) { draft[t.dataset.list][Number(t.dataset.index)] = t.value; updateNotes(); }
+    else if (t.dataset.tier) draft.pricing[Number(t.dataset.tier)][t.dataset.tierKey] = t.value;
+    else if (t.dataset.tags && t.value.includes(",")) addTag(t);
+  });
+
+  editor.addEventListener("keydown", (e) => {
+    const t = e.target;
+    if (t.dataset.tags) {
+      if (e.key === "Enter") { e.preventDefault(); addTag(t); }
+      else if (e.key === "Backspace" && !t.value) {
+        const tags = getPath(draft, t.dataset.tags);
+        if (tags.length) { tags.pop(); render(`[data-tags="${t.dataset.tags}"]`); }
+      }
+    } else if (t.dataset.list && e.key === "Enter") {
+      e.preventDefault();
+      const list = draft[t.dataset.list];
+      const i = Number(t.dataset.index);
+      list.splice(i + 1, 0, "");
+      render(`[data-list="${t.dataset.list}"][data-index="${i + 1}"]`);
+    } else if (t.tagName === "INPUT" && e.key === "Enter") {
+      e.preventDefault();
+    }
+  });
+
+  editor.addEventListener("focusout", (e) => {
+    const t = e.target;
+    if (t.dataset.tags && t.value.trim() && !editor.contains(e.relatedTarget)) addTag(t);
+  });
+
+  editor.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (b) {
+      const d = b.dataset;
+      if (d.add) { draft[d.add].push(""); render(`[data-list="${d.add}"][data-index="${draft[d.add].length - 1}"]`); }
+      else if (d.remove) { draft[d.remove].splice(Number(d.index), 1); render(); }
+      else if (d.tagRemove) { getPath(draft, d.tagRemove).splice(Number(d.index), 1); render(`[data-tags="${d.tagRemove}"]`); }
+      else if ("addTier" in d) { draft.pricing.push({ name: "", price: "", includes: [] }); render(`[data-tier="${draft.pricing.length - 1}"]`); }
+      else if (d.removeTier) { draft.pricing.splice(Number(d.removeTier), 1); render(); }
+      return;
+    }
+    const box = e.target.closest(".tag-box");
+    if (box) box.querySelector("input").focus();
+  });
+
+  const setMode = (next) => {
+    error.innerHTML = "";
+    if (next === mode) return true;
+    if (next === "json") {
+      jsonBox.value = JSON.stringify(cleanBrief(draft), null, 2);
+    } else {
+      try { draft = normaliseBrief(JSON.parse(jsonBox.value)); } catch (err) {
+        error.innerHTML = `<div class="alert">The JSON has a mistake, so it can't be shown as a form yet: ${esc(err.message)}</div>`;
+        return false;
+      }
+      render();
+    }
+    mode = next;
+    editor.hidden = mode !== "form";
+    jsonWrap.hidden = mode !== "json";
+    document.querySelectorAll(".segmented button").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
+    return true;
+  };
+  document.querySelectorAll(".segmented button").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
+
   const sample = document.getElementById("sample");
-  const brief = document.getElementById("brief");
   const loadSample = async () => {
-    if (!sample.value) return;
-    brief.value = JSON.stringify(await api(`/api/briefs/${sample.value}`), null, 2);
+    draft = normaliseBrief(sample.value ? await api(`/api/briefs/${sample.value}`) : BLANK_BRIEF);
+    error.innerHTML = "";
+    render();
+    if (mode === "json") jsonBox.value = JSON.stringify(cleanBrief(draft), null, 2);
   };
   sample.addEventListener("change", loadSample);
+  if (briefs.length) sample.value = briefs[0];
   await loadSample();
+
   const target = document.getElementById("target");
   target.addEventListener("input", () => { document.getElementById("target-val").textContent = target.value; });
+  document.querySelectorAll("input[name=builder]").forEach((i) => i.addEventListener("change", updateNotes));
 
   document.getElementById("new-run").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const error = document.getElementById("form-error");
     error.innerHTML = "";
-    let parsed;
-    try { parsed = JSON.parse(brief.value); } catch (err) {
-      error.innerHTML = `<div class="alert">The brief is not valid JSON: ${esc(err.message)}</div>`;
+    editor.querySelectorAll(".invalid").forEach((el) => el.classList.remove("invalid"));
+    if (mode === "json" && !setMode("form")) return;
+    const brief = cleanBrief(draft);
+    const problems = briefProblems(brief);
+    if (problems.length) {
+      problems.forEach(([id]) => document.getElementById(id)?.classList.add("invalid"));
+      error.innerHTML = `<div class="alert"><strong>A few things are missing</strong><ul>${problems.map(([, m]) => `<li>${esc(m)}</li>`).join("")}</ul></div>`;
+      document.getElementById(problems[0][0])?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
+    const builders = [...document.querySelectorAll("input[name=builder]:checked")].map((i) => i.value);
+    if (!builders.length) { error.innerHTML = `<div class="alert">Pick at least one builder.</div>`; return; }
+
     const button = e.target.querySelector("button[type=submit]");
     button.disabled = true;
     button.textContent = "Starting…";
@@ -373,12 +607,7 @@ async function renderNew() {
       const res = await api("/api/runs", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "X-Access-Token": token.value } : {}) },
-        body: JSON.stringify({
-          brief: parsed,
-          target: Number(target.value),
-          rounds: Number(document.getElementById("rounds").value),
-          builders: [...document.querySelectorAll("input[name=builder]:checked")].map((i) => i.value),
-        }),
+        body: JSON.stringify({ brief, target: Number(target.value), rounds: Number(document.getElementById("rounds").value), builders }),
       });
       location.hash = `#/runs/${res.id}`;
     } catch (err) {

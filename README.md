@@ -132,7 +132,7 @@ Three of the four first drafts missed the bar, mostly on copy length, readabilit
 | | |
 | --- | --- |
 | <img src="docs/screenshots/live-board.png" alt="Live task board while builders work in parallel"><br>**Live run.** Four builders post their plans and tick steps off in parallel. | <img src="docs/screenshots/audit-report.png" alt="Audit report modal listing every check"><br>**Audit report.** Every check, the points lost and the exact fix. |
-| <img src="docs/screenshots/landing-page.png" alt="A generated landing page"><br>**A generated variant.** Three local files, no external requests. | <img src="docs/screenshots/new-run.png" alt="New run form"><br>**New run.** Paste a brief, set the target and pick builders. |
+| <img src="docs/screenshots/landing-page.png" alt="A generated landing page"><br>**A generated variant.** Three local files, no external requests. | <img src="docs/screenshots/new-run.png" alt="New run form"><br>**New run.** Fill in the brief as a form (or paste JSON), set the target and pick builders. |
 | <img src="docs/screenshots/runs.png" alt="List of runs"><br>**Run history.** Every run is kept with its pages and scores. | <img src="docs/screenshots/dashboard-dark.png" alt="Dashboard in dark mode"><br>**Dark mode.** Follows the system setting, or toggle it. |
 
 ## Quick start
