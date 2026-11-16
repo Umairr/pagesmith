@@ -137,12 +137,12 @@ Three of the four first drafts missed the bar, mostly on copy length, readabilit
 
 ## Quick start
 
-**Prerequisites:** Python 3.12+, [uv](https://docs.astral.sh/uv/) and an OpenAI API key.
+**Prerequisites:** Python 3.12+, [uv](https://docs.astral.sh/uv/) and an API key from OpenAI, Anthropic, Google Gemini or OpenRouter (see [Model providers](#model-providers)).
 
 ```bash
 git clone https://github.com/Umairr/pagesmith.git
 cd pagesmith
-cp .env.example .env          # then add your OPENAI_API_KEY
+cp .env.example .env          # then add one provider key
 uv sync
 ```
 
@@ -160,7 +160,7 @@ uv run pagesmith serve
 
 Then visit <http://localhost:8000>.
 
-A full run with four builders and a 95 target usually takes 3 to 8 minutes and costs a few cents with the default `gpt-5.4-mini` models.
+A full run with four builders and a 95 target usually takes 3 to 8 minutes and costs a few cents with `gpt-5.4-mini`. Larger models cost more and are usually slower, so try a short run first.
 
 ## Usage
 
@@ -223,15 +223,36 @@ All settings are environment variables, which can also live in `.env`.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `OPENAI_API_KEY` | (required) | Used by the builders and, through LiteLLM, by the lead. |
-| `PAGESMITH_ORCHESTRATOR_MODEL` | `openai/gpt-5.4-mini` | The lead's model. Any LiteLLM id works; a `gemini-…` id runs on Gemini natively and needs `GOOGLE_API_KEY`. |
-| `PAGESMITH_BUILDER_MODEL` | `gpt-5.4-mini` | The model every builder uses. |
+| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `OPENROUTER_API_KEY` | (one required) | Provider keys. `GOOGLE_API_KEY` is accepted for Gemini. |
+| `PAGESMITH_MODEL` | first provider with a key | `provider/model` used by the lead and every builder. |
+| `PAGESMITH_ORCHESTRATOR_MODEL` | `PAGESMITH_MODEL` | Overrides the lead's model only. |
+| `PAGESMITH_BUILDER_MODEL` | `PAGESMITH_MODEL` | Overrides the builders' model only. |
+| `PAGESMITH_BASE_URL` / `PAGESMITH_API_KEY` | (empty) | Any OpenAI-compatible endpoint, used with `custom/<model>`. |
+| `PAGESMITH_MAX_TOKENS` | `16000` | Reply cap sent to non-OpenAI providers. Lower it if OpenRouter reports too few credits. |
 | `PAGESMITH_TARGET_SCORE` | `95` | Score every variant must reach. |
 | `PAGESMITH_MAX_ROUNDS` | `3` | Rounds per builder, the first build included. |
 | `PAGESMITH_BUILDER_TIMEOUT_S` | `420` | A builder still running after this is stopped and its goal marked failed. |
 | `PAGESMITH_ORCHESTRATOR_MAX_CALLS` | `60` | Upper bound on the lead's model calls per run. |
 | `PAGESMITH_RUNS_DIR` | `./runs` | Where runs are stored. |
 | `PAGESMITH_ACCESS_TOKEN` | (empty) | When set, starting a run from the dashboard requires this token. **Always set it on a public deployment.** |
+
+### Model providers
+
+Models are written as `provider/model`. Put one key in `.env` and Pagesmith picks the provider up on its own, with a sensible default model; set `PAGESMITH_MODEL` (or pass `--model`) to choose.
+
+| Provider | Key | Example | Default model |
+| --- | --- | --- | --- |
+| OpenAI | `OPENAI_API_KEY` | `openai/gpt-5.4-mini` | `gpt-5.4-mini` |
+| Anthropic | `ANTHROPIC_API_KEY` | `anthropic/claude-sonnet-5-5` | `claude-opus-5-5` |
+| Google Gemini | `GEMINI_API_KEY` | `gemini/gemini-3.7-flash` | `gemini-3.7-flash` |
+| OpenRouter | `OPENROUTER_API_KEY` | `openrouter/anthropic/claude-haiku-5-5` | `openai/gpt-5.4-mini` |
+| Anything OpenAI-compatible | `PAGESMITH_BASE_URL` (+ `PAGESMITH_API_KEY`) | `custom/llama3.3` | (none) |
+
+```bash
+uv run pagesmith run --brief briefs/ledgerly.json --model anthropic/claude-sonnet-5-5
+```
+
+Every framework talks to the provider through its own native client (Strands, Pydantic AI and Agno have first-party Anthropic and Gemini models; Microsoft Agent Framework uses its Anthropic client, and chat completions for the rest). The lead goes through LiteLLM. Mixing is fine too: a cheap model for the builders and a stronger one for the lead, or the other way round.
 
 ## Deployment
 
@@ -248,6 +269,8 @@ docker run -p 8000:8000 \
   pagesmith
 ```
 
+Swap `OPENAI_API_KEY` for `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` or `OPENROUTER_API_KEY` to run on another provider, and add `-e PAGESMITH_MODEL=...` to pick the model.
+
 The image runs as a non-root user, exposes `/healthz` for health checks and honours the `PORT` variable that most platforms set.
 
 ### Render (one click)
@@ -256,7 +279,7 @@ The repository includes a [`render.yaml`](render.yaml) blueprint.
 
 1. Push the repository to GitHub.
 2. In Render, choose **New → Blueprint** and select the repository.
-3. Enter `OPENAI_API_KEY` when prompted. `PAGESMITH_ACCESS_TOKEN` is generated for you; copy it from the service's **Environment** tab.
+3. Enter a key for at least one provider when prompted (leave the others blank), and optionally `PAGESMITH_MODEL`. `PAGESMITH_ACCESS_TOKEN` is generated for you; copy it from the service's **Environment** tab.
 4. Deploy. The blueprint attaches a 1 GB persistent disk at `/data`, so runs survive redeploys.
 
 > A persistent disk needs a paid instance type (Starter or above). On the free tier, the app works but runs are lost on every restart.
@@ -265,7 +288,7 @@ The repository includes a [`render.yaml`](render.yaml) blueprint.
 
 Any platform that builds a Dockerfile works:
 
-- Set `OPENAI_API_KEY` and `PAGESMITH_ACCESS_TOKEN`.
+- Set one provider key (for example `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`) and `PAGESMITH_ACCESS_TOKEN`.
 - Mount a volume at `/data` to keep run history.
 - Point the health check at `/healthz`.
 
@@ -328,11 +351,11 @@ The audit is fully deterministic, so it's covered by plain unit tests: a referen
 
 ## Extending Pagesmith
 
-**Add a builder on another framework.** Write a module in `src/pagesmith/workers/` with an `async def build(tools, instructions, message, model)` that runs your framework's agent with the given tools, end it with `main(build)`, and register it in `workers/__init__.py`. The toolkit, board and audit stay the same.
+**Add a builder on another framework.** Write a module in `src/pagesmith/workers/` with an `async def build(tools, instructions, message, spec)` that runs your framework's agent with the given tools, end it with `main(build)`, and register it in `workers/__init__.py`. The toolkit, board and audit stay the same.
 
 **Change what "good" means.** Every check in `audit.py` is a small function that returns points, a detail and a hint. Adjust the weights or add a check (contrast ratios, a Lighthouse run, conversion data from a real A/B test) and the whole loop optimises for the new definition.
 
-**Use a different model provider.** Point `PAGESMITH_ORCHESTRATOR_MODEL` at any LiteLLM id. Builders use OpenAI-compatible chat completions, so any compatible endpoint works through the standard `OPENAI_BASE_URL` variable.
+**Add a model provider.** Register it in `src/pagesmith/models.py` (key variable, default model, endpoint) and add a branch to each builder's `make_model`. Anything that speaks OpenAI chat completions already works through `custom/...`.
 
 ## Roadmap
 

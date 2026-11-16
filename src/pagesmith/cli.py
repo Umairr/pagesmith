@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -24,8 +23,14 @@ def _cmd_run(args: argparse.Namespace) -> None:
     from pagesmith.orchestrator import run_studio
     from pagesmith.store import Run
 
-    if not os.environ.get("OPENAI_API_KEY"):
-        sys.exit("OPENAI_API_KEY is not set. Copy .env.example to .env and add your key.")
+    from pagesmith.models import ModelConfigError
+
+    if args.model:
+        config.use_model(args.model)
+    try:
+        config.check_models()
+    except ModelConfigError as exc:
+        sys.exit(f"{exc}\nCopy .env.example to .env and add a key for OpenAI, Anthropic, Gemini or OpenRouter.")
 
     if args.run_dir:
         run = Run(args.run_dir)
@@ -114,6 +119,7 @@ def main(argv: list[str] | None = None) -> None:
     run.add_argument("--rounds", type=int, default=config.MAX_ROUNDS, help="max rounds per builder, first build included")
     run.add_argument("--builders", nargs="*", help="only these builders (strands pydantic agno maf)")
     run.add_argument("--skip", nargs="*", default=[], help="leave these builders out")
+    run.add_argument("--model", help="provider/model for the lead and every builder, e.g. anthropic/claude-sonnet-5-5")
     run.set_defaults(fn=_cmd_run)
 
     serve = sub.add_parser("serve", help="start the dashboard")

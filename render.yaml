@@ -6,7 +6,16 @@ services:
     healthCheckPath: /healthz
     autoDeploy: true
     envVars:
+      # Fill in at least one provider key; leave the others empty.
       - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: PAGESMITH_MODEL
         sync: false
       - key: PAGESMITH_ACCESS_TOKEN
         generateValue: true

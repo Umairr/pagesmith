@@ -8,6 +8,19 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "agent-framework-anthropic"
+version = "1.0.0b261112"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "agent-framework-core" },
+    { name = "anthropic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/83/2b/45e65852273e7458feb6e9ff252ad2ed135a6d858f0199727b62532dce5b/agent_framework_anthropic-1.0.0b261112.tar.gz", hash = "sha256:a4c1719d0d852fef210cb22632a297edf0b2866ae5ee9fe8bf2f2aab543058f8", size = 29700, upload-time = "2026-11-12T18:25:01.606Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cb/91/022925268219872aedbfa0b06465f79257ff72990424ec0847070bf71ab5/agent_framework_anthropic-1.0.0b261112-py3-none-any.whl", hash = "sha256:44403e124ef70b28982ac76ebe34324db41198450d38068aee77fb6a485e2336", size = 32202, upload-time = "2026-11-12T18:25:41.513Z" },
+]
+
+[[package]]
 name = "agent-framework-core"
 version = "1.26.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2923,6 +2936,7 @@ name = "pagesmith"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "agent-framework-anthropic" },
     { name = "agent-framework-core" },
     { name = "agent-framework-openai" },
     { name = "agno" },
@@ -2932,10 +2946,10 @@ dependencies = [
     { name = "litellm" },
     { name = "openai" },
     { name = "pydantic" },
-    { name = "pydantic-ai-slim", extra = ["openai"] },
+    { name = "pydantic-ai-slim", extra = ["anthropic", "google", "openai"] },
     { name = "python-dotenv" },
     { name = "rich" },
-    { name = "strands-agents", extra = ["openai"] },
+    { name = "strands-agents", extra = ["anthropic", "gemini", "openai"] },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -2947,6 +2961,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "agent-framework-anthropic", specifier = ">=1.0.0b0" },
     { name = "agent-framework-core", specifier = ">=1.8.1" },
     { name = "agent-framework-openai", specifier = ">=1.8.1" },
     { name = "agno", specifier = ">=2.6.14" },
@@ -2956,10 +2971,10 @@ requires-dist = [
     { name = "litellm", specifier = "<1.106" },
     { name = "openai", specifier = ">=2.0" },
     { name = "pydantic", specifier = ">=2.10" },
-    { name = "pydantic-ai-slim", extras = ["openai"], specifier = ">=1.107.0" },
+    { name = "pydantic-ai-slim", extras = ["anthropic", "google", "openai"], specifier = ">=1.107.0" },
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "rich", specifier = ">=13.9" },
-    { name = "strands-agents", extras = ["openai"], specifier = ">=1.43.0" },
+    { name = "strands-agents", extras = ["anthropic", "gemini", "openai"], specifier = ">=1.43.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]
 
@@ -3334,6 +3349,12 @@ wheels = [
 ]
 
 [package.optional-dependencies]
+anthropic = [
+    { name = "anthropic" },
+]
+google = [
+    { name = "google-genai" },
+]
 openai = [
     { name = "openai" },
     { name = "tiktoken" },
@@ -4116,6 +4137,12 @@ wheels = [
 ]
 
 [package.optional-dependencies]
+anthropic = [
+    { name = "anthropic" },
+]
+gemini = [
+    { name = "google-genai" },
+]
 openai = [
     { name = "aws-bedrock-token-generator" },
     { name = "openai" },

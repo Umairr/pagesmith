@@ -16,11 +16,12 @@ from typing import Awaitable, Callable
 
 from pagesmith import config
 from pagesmith.board import Board
+from pagesmith.models import ModelSpec
 from pagesmith.prompts import BUILDER_INSTRUCTIONS
 from pagesmith.store import Run
 from pagesmith.toolkit import build_toolkit
 
-BuilderFn = Callable[[list[Callable], str, str, str], Awaitable[None]]
+BuilderFn = Callable[[list[Callable], str, str, ModelSpec], Awaitable[None]]
 
 
 def main(build: BuilderFn) -> None:
@@ -36,7 +37,7 @@ def main(build: BuilderFn) -> None:
         "then plan, build, audit and iterate. Call finish when you are done."
     )
     try:
-        asyncio.run(build(tools, BUILDER_INSTRUCTIONS, message, config.BUILDER_MODEL))
+        asyncio.run(build(tools, BUILDER_INSTRUCTIONS, message, config.BUILDER_SPEC))
     except Exception as exc:  # the orchestrator reads the reason off the board
         traceback.print_exc()
         board.fail(goal_id, f"{type(exc).__name__}: {str(exc)[:240]}")
