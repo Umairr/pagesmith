@@ -53,9 +53,19 @@ class Run:
 
     # state ---------------------------------------------------------------------------
     @classmethod
-    def create(cls, brief: Brief, target: int, max_rounds: int, runs_dir: Path | None = None) -> "Run":
+    def create(cls, brief: Brief, target: int, max_rounds: int, runs_dir: Path | None = None,
+               reference: tuple[bytes, str] | None = None) -> "Run":
+        """Create the run folder. ``reference`` is an optional (image bytes, mime) screenshot."""
+        from pagesmith.brief import Style
+        from pagesmith.style import EXTENSIONS
+
         run = cls((runs_dir or config.RUNS_DIR) / new_run_id(brief.product))
         run.pages_dir.mkdir(parents=True, exist_ok=True)
+        if reference:
+            data, mime = reference
+            name = "reference" + EXTENSIONS.get(mime, ".png")
+            (run.dir / name).write_bytes(data)
+            brief = brief.model_copy(update={"style": (brief.style or Style()).model_copy(update={"reference": name})})
         run.write({
             "id": run.id,
             "status": "starting",

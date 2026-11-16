@@ -203,12 +203,24 @@ function boardLanes(state) {
   }).join("");
 }
 
-function briefPanel(b) {
+function stylePanel(st, runId) {
+  if (!st) return "";
+  const roles = COLOUR_ROLES.filter(([role]) => st[role]);
+  return `<dt>Look &amp; feel</dt><dd>
+    ${st.reference ? `<a href="/runs/${esc(runId)}/reference" target="_blank" rel="noopener"><img class="ref-thumb" src="/runs/${esc(runId)}/reference" alt="Reference screenshot"></a>` : ""}
+    ${roles.length ? `<div class="swatch-chips">${roles.map(([role, label]) => `<span class="chip"><i class="dot" style="background:${esc(st[role])}"></i>${label} <span class="mono">${esc(st[role])}</span></span>`).join("")}</div>` : ""}
+    ${st.font ? `<div class="subtle" style="margin-top:6px">Type: ${esc(st.font)}</div>` : ""}
+    ${st.notes ? `<div class="subtle" style="margin-top:4px">${esc(st.notes)}</div>` : ""}
+  </dd>`;
+}
+
+function briefPanel(b, runId) {
   return `<dl class="brief-list">
     <dt>Description</dt><dd>${esc(b.description)}</dd>
     <dt>Keywords</dt><dd class="tags">${b.keywords.map((k) => `<span class="chip">${esc(k)}</span>`).join("")}</dd>
     <dt>Features</dt><dd>${b.features.map(esc).join(" · ")}</dd>
     <dt>Call to action</dt><dd>${esc(b.call_to_action)}</dd>
+    ${stylePanel(b.style, runId)}
   </dl>`;
 }
 
@@ -271,7 +283,7 @@ async function renderRun(id, first) {
       <div><div class="section-title" style="margin-top:0"><h2>Activity</h2></div>
         <div class="card"><ul class="timeline">${state.log.slice().reverse().map((e) => `
           <li><time>${clock(e.at)}</time><span class="k-${esc(e.kind)}">${esc(e.message)}</span></li>`).join("")}</ul></div></div>
-      <div><div class="section-title" style="margin-top:0"><h2>Brief</h2></div><div class="card">${briefPanel(state.brief)}</div></div>
+      <div><div class="section-title" style="margin-top:0"><h2>Brief</h2></div><div class="card">${briefPanel(state.brief, state.id)}</div></div>
     </div>`;
 
   view.querySelectorAll("[data-preview]").forEach((b) => b.addEventListener("click", () => {
@@ -312,6 +324,22 @@ const BLANK_BRIEF = {
   product: "", tagline: "", description: "", features: ["", "", ""], pricing: [],
   keywords: [], audiences: [""], call_to_action: "Start free trial", tone: "confident, clear, no hype",
 };
+const COLOUR_ROLES = [
+  ["primary", "Primary", "Buttons and links"],
+  ["accent", "Accent", "Badges and highlights"],
+  ["background", "Background", "Page background"],
+  ["surface", "Surface", "Cards and bands"],
+  ["text", "Text", "Headings and copy"],
+];
+const PREVIEW_FALLBACK = { primary: "#5b5bd6", accent: "#f59e0b", background: "#ffffff", surface: "#f3f3f7", text: "#1a1a22" };
+const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
+const normHex = (v) => {
+  const m = HEX.exec(String(v || "").trim());
+  if (!m) return null;
+  const d = m[1].length === 3 ? [...m[1]].map((c) => c + c).join("") : m[1];
+  return `#${d.toLowerCase()}`;
+};
+const emptyStyle = () => ({ primary: null, accent: null, background: null, surface: null, text: null, font: "", notes: "" });
 
 function normaliseBrief(b = {}) {
   return {
@@ -320,7 +348,16 @@ function normaliseBrief(b = {}) {
     keywords: [...(b.keywords || [])],
     audiences: [...(b.audiences || BLANK_BRIEF.audiences)],
     pricing: (b.pricing || []).map((t) => ({ name: t.name || "", price: t.price || "", includes: [...(t.includes || [])] })),
+    style: { ...emptyStyle(), ...(b.style || {}) },
   };
+}
+
+function cleanStyle(st) {
+  const out = {};
+  COLOUR_ROLES.forEach(([role]) => { const h = normHex(st[role]); if (h) out[role] = h; });
+  if (st.font && st.font.trim()) out.font = st.font.trim();
+  if (st.notes && st.notes.trim()) out.notes = st.notes.trim();
+  return Object.keys(out).length ? out : null;
 }
 
 function cleanBrief(d) {
@@ -333,6 +370,7 @@ function cleanBrief(d) {
       .filter((t) => t.name || t.price),
     call_to_action: d.call_to_action.trim() || BLANK_BRIEF.call_to_action,
     tone: d.tone.trim() || BLANK_BRIEF.tone,
+    ...(cleanStyle(d.style) ? { style: cleanStyle(d.style) } : {}),
   };
 }
 
@@ -345,6 +383,14 @@ function briefProblems(b) {
   if (!b.audiences.length) out.push(["list-audiences", "Add at least one audience."]);
   if (!b.keywords.length) out.push(["tags-keywords", "Add at least one search keyword."]);
   b.pricing.forEach((t, i) => { if (!t.name || !t.price) out.push([`tier-${i}`, `Pricing plan ${i + 1} needs a name and a price.`]); });
+  return out;
+}
+
+function colourProblems(st) {
+  const out = [];
+  COLOUR_ROLES.forEach(([role, label]) => {
+    if (st[role] && !normHex(st[role])) out.push([`hex-${role}`, `${label} colour "${st[role]}" is not a hex colour like #56cfe1.`]);
+  });
   return out;
 }
 
@@ -383,7 +429,57 @@ function tierCard(t, i) {
     </div>`;
 }
 
-function briefEditor(d) {
+function swatchRow(st) {
+  return COLOUR_ROLES.map(([role, label, hint]) => {
+    const v = normHex(st[role]);
+    return `
+      <div class="swatch-field">
+        <label class="swatch${v ? "" : " unset"}" style="--c:${v || "transparent"}" title="Pick the ${label.toLowerCase()} colour">
+          <input type="color" data-colour="${role}" value="${v || "#ffffff"}" aria-label="${label} colour">
+        </label>
+        <div class="swatch-text">
+          <span class="swatch-name">${label}</span>
+          <input type="text" id="hex-${role}" data-hex="${role}" value="${esc(st[role] || "")}" placeholder="not set" maxlength="7" spellcheck="false" aria-label="${label} hex value">
+          <span class="swatch-hint">${hint}</span>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+function stylePreview(st) {
+  const c = (role) => normHex(st[role]) || PREVIEW_FALLBACK[role];
+  return `<div class="style-preview" id="style-preview" style="--p:${c("primary")};--a:${c("accent")};--bg:${c("background")};--s:${c("surface")};--t:${c("text")}" aria-hidden="true">
+    <div class="sp-band"><div class="sp-card">
+      <span class="sp-badge">New</span>
+      <div class="sp-h">Your headline here</div>
+      <div class="sp-line"></div><div class="sp-line short"></div>
+      <span class="sp-btn">Start free trial</span>
+    </div></div>
+  </div>`;
+}
+
+function dropzone(ref, status) {
+  if (!ref) {
+    return `<label class="dropzone" id="dropzone">
+      <input type="file" id="ref-file" accept="image/png,image/jpeg,image/webp" hidden>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>
+      <strong>Drop a screenshot of a page you like</strong>
+      <span>or click to choose one, or paste it with Ctrl/⌘ + V. Its colours and style are read automatically.</span>
+    </label>`;
+  }
+  return `<div class="dropzone has-image" id="dropzone">
+    <img src="${ref}" alt="Reference screenshot">
+    <div class="ref-side">
+      <div class="ref-status ${status?.kind || ""}">${status?.html || "This screenshot will be saved with the run."}</div>
+      <div class="ref-actions">
+        <button type="button" class="btn btn-sm" data-ref-read>Read colours again</button>
+        <button type="button" class="btn btn-sm btn-ghost" data-ref-remove>Remove</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function briefEditor(d, ref, refStatus) {
   return `
     <section class="form-section">
       <h3>Product</h3>
@@ -394,6 +490,22 @@ function briefEditor(d) {
       <div class="row-2">
         <div class="field"><label for="f-cta">Call to action</label>${textInput("f-cta", "call_to_action", d.call_to_action, "Start free trial")}</div>
         <div class="field"><label for="f-tone">Tone of voice</label>${textInput("f-tone", "tone", d.tone, "friendly, confident, plain English")}</div>
+      </div>
+    </section>
+    <section class="form-section">
+      <div class="section-row"><h3>Look &amp; feel</h3><span class="count">Optional</span></div>
+      <p class="help">Show a page you like, or set the colours yourself. Builders follow them and the audit checks every colour is used.</p>
+      <div id="ref-slot">${dropzone(ref, refStatus)}</div>
+      <div class="style-grid">
+        <div class="swatches">${swatchRow(d.style)}</div>
+        ${stylePreview(d.style)}
+      </div>
+      <div class="row-2" style="margin-top:14px">
+        <div class="field"><label for="f-font">Font feel</label>
+          <input type="text" id="f-font" data-style="font" value="${esc(d.style.font)}" placeholder="e.g. rounded geometric sans, like Poppins">
+          <span class="help">Pages use system fonts only, so builders pick the closest match.</span></div>
+        <div class="field"><label for="f-notes">Design notes</label>
+          <textarea id="f-notes" data-style="notes" rows="3" placeholder="e.g. centred white card on a mint band, square inputs, wide flat cyan button">${esc(d.style.notes)}</textarea></div>
       </div>
     </section>
     <section class="form-section">
@@ -466,6 +578,8 @@ async function renderNew() {
 
   let draft = normaliseBrief(BLANK_BRIEF);
   let mode = "form";
+  let ref = null;        // reference screenshot as a data URL
+  let refStatus = null;  // { kind, html } shown next to it
   const editor = document.getElementById("brief-editor");
   const jsonWrap = document.getElementById("brief-json-wrap");
   const jsonBox = document.getElementById("brief-json");
@@ -484,9 +598,94 @@ async function renderNew() {
   };
 
   const render = (focus) => {
-    editor.innerHTML = briefEditor(draft);
+    editor.innerHTML = briefEditor(draft, ref, refStatus);
     updateNotes();
     if (focus) editor.querySelector(focus)?.focus();
+  };
+
+  // Colour changes repaint the swatch and preview in place, so pickers keep focus.
+  const paintColour = (role) => {
+    const v = normHex(draft.style[role]);
+    const swatch = editor.querySelector(`[data-colour="${role}"]`)?.parentElement;
+    if (swatch) { swatch.style.setProperty("--c", v || "transparent"); swatch.classList.toggle("unset", !v); }
+    const preview = document.getElementById("style-preview");
+    if (preview) preview.outerHTML = stylePreview(draft.style);
+  };
+
+  const renderRef = () => { document.getElementById("ref-slot").innerHTML = dropzone(ref, refStatus); };
+
+  // Screenshots are scaled to at most 1600px wide before upload: plenty for colours and layout.
+  const toDataUrl = (file) => new Promise((resolve, reject) => {
+    if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) { reject(new Error("Use a PNG, JPG or WebP screenshot.")); return; }
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 1600 / img.width, 6000 / img.height);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      let url = canvas.toDataURL("image/png");
+      if (url.length > 9_000_000) url = canvas.toDataURL("image/jpeg", 0.92);
+      URL.revokeObjectURL(img.src);
+      resolve(url);
+    };
+    img.onerror = () => reject(new Error("That file could not be opened as an image."));
+    img.src = URL.createObjectURL(file);
+  });
+
+  const readReference = async () => {
+    refStatus = { kind: "busy", html: '<span class="spinner"></span> Reading colours and style…' };
+    renderRef();
+    try {
+      const token = document.getElementById("token");
+      const res = await api("/api/style", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { "X-Access-Token": token.value } : {}) },
+        body: JSON.stringify({ image: ref }),
+      });
+      draft.style = { ...emptyStyle(), ...res.style };
+      refStatus = {
+        kind: "ok",
+        html: res.source === "model"
+          ? "Colours, font feel and design notes read from your screenshot. Adjust anything below."
+          : "Colours picked from the screenshot's pixels (the model could not describe it). Adjust anything below.",
+      };
+    } catch (err) {
+      refStatus = { kind: "error", html: `Couldn't read it: ${esc(err.message)}. You can still set colours by hand.` };
+    }
+    render();
+  };
+
+  const useFile = async (file) => {
+    if (!file) return;
+    try { ref = await toDataUrl(file); } catch (err) {
+      refStatus = { kind: "error", html: esc(err.message) };
+      ref = null;
+      renderRef();
+      return;
+    }
+    await readReference();
+  };
+
+  editor.addEventListener("change", (e) => {
+    if (e.target.id === "ref-file") useFile(e.target.files[0]);
+  });
+  editor.addEventListener("dragover", (e) => {
+    const zone = e.target.closest(".dropzone");
+    if (zone) { e.preventDefault(); zone.classList.add("drag"); }
+  });
+  editor.addEventListener("dragleave", (e) => e.target.closest(".dropzone")?.classList.remove("drag"));
+  editor.addEventListener("drop", (e) => {
+    const zone = e.target.closest(".dropzone");
+    if (!zone) return;
+    e.preventDefault();
+    zone.classList.remove("drag");
+    useFile(e.dataTransfer.files[0]);
+  });
+  document.onpaste = (e) => {
+    if (!document.getElementById("ref-slot") || mode !== "form") return;
+    const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith("image/"));
+    if (item) { e.preventDefault(); useFile(item.getAsFile()); }
   };
 
   const addTag = (input) => {
@@ -504,6 +703,19 @@ async function renderNew() {
     t.closest(".invalid")?.classList.remove("invalid");
     t.classList.remove("invalid");
     if (t.dataset.key) draft[t.dataset.key] = t.value;
+    else if (t.dataset.style) draft.style[t.dataset.style] = t.value;
+    else if (t.dataset.colour) {
+      draft.style[t.dataset.colour] = t.value;
+      const hex = editor.querySelector(`[data-hex="${t.dataset.colour}"]`);
+      if (hex) hex.value = t.value;
+      paintColour(t.dataset.colour);
+    } else if (t.dataset.hex) {
+      draft.style[t.dataset.hex] = t.value.trim() || null;
+      const v = normHex(t.value);
+      const picker = editor.querySelector(`[data-colour="${t.dataset.hex}"]`);
+      if (v && picker) picker.value = v;
+      paintColour(t.dataset.hex);
+    }
     else if (t.dataset.list) { draft[t.dataset.list][Number(t.dataset.index)] = t.value; updateNotes(); }
     else if (t.dataset.tier) draft.pricing[Number(t.dataset.tier)][t.dataset.tierKey] = t.value;
     else if (t.dataset.tags && t.value.includes(",")) addTag(t);
@@ -542,6 +754,8 @@ async function renderNew() {
       else if (d.tagRemove) { getPath(draft, d.tagRemove).splice(Number(d.index), 1); render(`[data-tags="${d.tagRemove}"]`); }
       else if ("addTier" in d) { draft.pricing.push({ name: "", price: "", includes: [] }); render(`[data-tier="${draft.pricing.length - 1}"]`); }
       else if (d.removeTier) { draft.pricing.splice(Number(d.removeTier), 1); render(); }
+      else if ("refRead" in d) readReference();
+      else if ("refRemove" in d) { ref = null; refStatus = null; renderRef(); }
       return;
     }
     const box = e.target.closest(".tag-box");
@@ -589,7 +803,7 @@ async function renderNew() {
     editor.querySelectorAll(".invalid").forEach((el) => el.classList.remove("invalid"));
     if (mode === "json" && !setMode("form")) return;
     const brief = cleanBrief(draft);
-    const problems = briefProblems(brief);
+    const problems = [...briefProblems(brief), ...colourProblems(draft.style)];
     if (problems.length) {
       problems.forEach(([id]) => document.getElementById(id)?.classList.add("invalid"));
       error.innerHTML = `<div class="alert"><strong>A few things are missing</strong><ul>${problems.map(([, m]) => `<li>${esc(m)}</li>`).join("")}</ul></div>`;
@@ -607,7 +821,10 @@ async function renderNew() {
       const res = await api("/api/runs", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { "X-Access-Token": token.value } : {}) },
-        body: JSON.stringify({ brief, target: Number(target.value), rounds: Number(document.getElementById("rounds").value), builders }),
+        body: JSON.stringify({
+          brief, builders, reference_image: ref,
+          target: Number(target.value), rounds: Number(document.getElementById("rounds").value),
+        }),
       });
       location.hash = `#/runs/${res.id}`;
     } catch (err) {

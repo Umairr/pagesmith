@@ -23,6 +23,7 @@ from pagesmith.audit import PAGE_FILES, audit_page
 from pagesmith.board import Board
 from pagesmith.brief import Brief
 from pagesmith.store import Run, list_runs
+from pagesmith.style import decode_data_url, describe_reference, load_image
 
 STATIC = Path(__file__).resolve().parent / "static"
 _RUN_ID = re.compile(r"^[0-9]{8}-[0-9]{6}-[a-z0-9-]{1,24}$")
@@ -30,6 +31,11 @@ _MEDIA = {".html": "text/html", ".css": "text/css", ".js": "text/javascript"}
 
 app = FastAPI(title="Pagesmith", version=__version__, docs_url="/api/docs", redoc_url=None)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+
+
+def _require_token(token: str) -> None:
+    if config.ACCESS_TOKEN and not hmac.compare_digest(token, config.ACCESS_TOKEN):
+        raise HTTPException(401, "A valid access token is required.")
 
 
 def _run(run_id: str) -> Run:
@@ -107,8 +113,35 @@ def page_file(run_id: str, key: str, filename: str = "index.html") -> FileRespon
     return FileResponse(path, media_type=_MEDIA[path.suffix])
 
 
+@app.get("/runs/{run_id}/reference", include_in_schema=False)
+def reference_image(run_id: str) -> FileResponse:
+    run = _run(run_id)
+    name = ((run.read()["brief"].get("style") or {}).get("reference")) or ""
+    path = run.dir / Path(name).name
+    if not name or not path.is_file():
+        raise HTTPException(404, "No reference screenshot")
+    return FileResponse(path)
+
+
+class StyleRequest(BaseModel):
+    image: str = Field(description="The screenshot as a base64 data URL.")
+
+
+@app.post("/api/style")
+def style_from_screenshot(body: StyleRequest, x_access_token: str = Header(default="")) -> dict:
+    """Read colours, type and design notes off a reference screenshot."""
+    _require_token(x_access_token)
+    try:
+        data, mime = decode_data_url(body.image)
+        style, source = describe_reference(data, mime)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return {"style": style.model_dump(exclude={"reference"}), "source": source}
+
+
 class NewRun(BaseModel):
     brief: dict
+    reference_image: str | None = Field(default=None, description="Optional reference screenshot as a data URL.")
     target: int = Field(default=config.TARGET_SCORE, ge=50, le=100)
     rounds: int = Field(default=config.MAX_ROUNDS, ge=1, le=5)
     builders: list[str] = Field(default_factory=lambda: [b["key"] for b in workers.BUILDERS])
@@ -116,14 +149,18 @@ class NewRun(BaseModel):
 
 @app.post("/api/runs", status_code=201)
 def start_run(body: NewRun, x_access_token: str = Header(default="")) -> dict:
-    if config.ACCESS_TOKEN and not hmac.compare_digest(x_access_token, config.ACCESS_TOKEN):
-        raise HTTPException(401, "A valid access token is required to start runs.")
+    _require_token(x_access_token)
     try:
         brief = Brief.model_validate(body.brief)
+        image = decode_data_url(body.reference_image) if body.reference_image else None
+        if image:
+            load_image(image[0])  # reject anything that is not really an image
     except ValidationError as exc:
         raise HTTPException(422, f"Invalid brief: {exc.errors()[0]['msg']}") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
     chosen = [b["key"] for b in workers.select(body.builders)][: len(brief.audiences)]
-    run = Run.create(brief, target=body.target, max_rounds=body.rounds)
+    run = Run.create(brief, target=body.target, max_rounds=body.rounds, reference=image)
     run.update(lambda s: s.update(builders=chosen))
     log = open(run.dir / "studio.log", "w", encoding="utf-8")  # noqa: SIM115 - handed to the child
     subprocess.Popen([sys.executable, "-m", "pagesmith", "run", "--run-dir", str(run.dir)],

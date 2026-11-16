@@ -17,6 +17,7 @@ dependencies = [
     # litellm 1.106+ needs mcp>=2, which clashes with the agent frameworks above.
     "litellm<1.106",
     "openai>=2.0",
+    "pillow>=10",
     "pydantic>=2.10",
     "pydantic-ai-slim[anthropic,google,openai]>=1.107.0",
     "python-dotenv>=1.0",

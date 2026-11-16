@@ -39,7 +39,16 @@ def _cmd_run(args: argparse.Namespace) -> None:
     else:
         brief = load_brief(args.brief)
         builders = workers.select(args.builders, args.skip)[: len(brief.audiences)]
-        run = Run.create(brief, target=args.target, max_rounds=args.rounds)
+        reference = None
+        if args.reference:
+            from pagesmith.style import describe_reference, guess_mime, merge
+
+            reference = (Path(args.reference).read_bytes(), guess_mime(args.reference))
+            found, source = describe_reference(*reference)
+            brief = brief.model_copy(update={"style": merge(brief.style, found)})
+            swatches = "  ".join(f"{role} {hex_}" for role, hex_ in brief.style.palette().items())
+            console.print(f"Style from {args.reference} ({'read by the model' if source == 'model' else 'pixel palette'}): {swatches}")
+        run = Run.create(brief, target=args.target, max_rounds=args.rounds, reference=reference)
         run.update(lambda s: s.update(builders=[b["key"] for b in builders]))
 
     state = run.read()
@@ -119,6 +128,7 @@ def main(argv: list[str] | None = None) -> None:
     run.add_argument("--rounds", type=int, default=config.MAX_ROUNDS, help="max rounds per builder, first build included")
     run.add_argument("--builders", nargs="*", help="only these builders (strands pydantic agno maf)")
     run.add_argument("--skip", nargs="*", default=[], help="leave these builders out")
+    run.add_argument("--reference", help="screenshot of a page whose colours and style the variants should follow")
     run.add_argument("--model", help="provider/model for the lead and every builder, e.g. anthropic/claude-sonnet-5-5")
     run.set_defaults(fn=_cmd_run)
 

@@ -95,7 +95,7 @@ All four builders share one toolkit of plain, typed Python functions: `read_task
 | **SEO** | 25 | Title length · meta description length · exactly one H1 · primary keyword in title and H1 · section headings · `lang` · canonical URL · Open Graph |
 | **Accessibility** | 25 | Image alt text · accessible names for links and buttons · labelled form fields · landmarks (`header`, `nav`, `main`, `footer`) · heading order · skip link |
 | **Performance** | 20 | Total weight ≤ 60 KB · zero third-party requests · DOM size · viewport meta and non-blocking scripts |
-| **Content** | 30 | Copy length · brief keyword coverage · brief feature coverage · required sections (`hero`, `features`, `pricing`, `testimonials`, `faq`) · at least two calls to action · Flesch reading ease |
+| **Content** | 30 | Copy length · brief keyword coverage · brief feature coverage · required sections (`hero`, `features`, `pricing`, `testimonials`, `faq`) · at least two calls to action · Flesch reading ease · brand colours used (when the brief sets a palette) |
 
 Grades: **A** ≥ 90 · **B** ≥ 80 · **C** ≥ 70 · **D** ≥ 60. You can run the audit on any folder without the studio:
 
@@ -171,6 +171,9 @@ uv run pagesmith run --brief briefs/ledgerly.json
 # Raise the bar and allow more rounds
 uv run pagesmith run --brief briefs/stayfit.json --target 98 --rounds 4
 
+# Match the colours and style of a page you like
+uv run pagesmith run --brief briefs/ledgerly.json --reference ~/Desktop/inspiration.png
+
 # Only some builders
 uv run pagesmith run --brief briefs/ledgerly.json --builders agno pydantic
 uv run pagesmith run --brief briefs/ledgerly.json --skip maf
@@ -205,12 +208,33 @@ A brief is a small JSON file. Pagesmith builds one variant per audience, up to t
 
 The first keyword is the primary keyword, which the audit expects in both the title and the H1. See [`briefs/`](briefs) for complete examples.
 
+### Look and feel
+
+By default each builder picks its own design. To pin the look, add a `style` block, give a reference screenshot, or both:
+
+```json
+"style": {
+  "primary": "#56cfe1",
+  "accent": "#f59e0b",
+  "background": "#ffffff",
+  "surface": "#eef8ec",
+  "text": "#222222",
+  "font": "rounded geometric sans, like Poppins",
+  "notes": "centred white card on a mint band, square inputs, wide flat button"
+}
+```
+
+Every field is optional. Builders receive the palette as CSS custom properties to use, and the audit's **Brand colours** check (4 of the 30 Content points) confirms each colour actually appears in `styles.css`.
+
+With `--reference` (or by dropping a screenshot on the **New run** form) Pagesmith reads the style off the image. Pillow quantises the pixels to find the real colours, and the lead's model, which needs to support images, names their roles and writes short design notes on layout, spacing and buttons. Colours from the model are snapped to the nearest real pixel colour. Anything you set in the brief wins over what was read, and the screenshot is saved in the run folder and shown on the run page.
+
 ### Output
 
 ```
 runs/<run-id>/
 ├── run.json          brief, settings, status, score history, activity log, summary
 ├── board.sqlite      the shared task board
+├── reference.png     the reference screenshot, when one was given
 ├── logs/             one log per builder per round
 └── pages/<builder>/  index.html · styles.css · script.js
 ```
@@ -326,7 +350,9 @@ pagesmith/
 │   ├── console.py              live terminal board (rich)
 │   ├── orchestrator.py         the studio lead (Google ADK) and its tools
 │   ├── prompts.py              every prompt in one place
+│   ├── models.py               provider/model parsing and keys
 │   ├── store.py                run folders and atomic state writes
+│   ├── style.py                colours and style from a reference screenshot
 │   ├── toolkit.py              tools shared by every builder
 │   ├── workers/                one builder per framework
 │   │   ├── _entry.py           shared process entry point
@@ -335,7 +361,7 @@ pagesmith/
 │   │   ├── pydantic_builder.py
 │   │   └── strands_builder.py
 │   └── web/                    FastAPI app and dashboard
-├── tests/                      audit and board tests
+├── tests/                      audit, board, model and style tests
 ├── Dockerfile
 ├── render.yaml
 └── pyproject.toml

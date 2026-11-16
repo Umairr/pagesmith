@@ -11,6 +11,7 @@ Four categories add up to 100:
     Accessibility  25   alt text, accessible names, labels, landmarks, heading order
     Performance    20   page weight, no third-party requests, DOM size, viewport
     Content        30   length, keyword and feature coverage, sections, CTAs, readability
+                        (and brand colours, when the brief sets a palette)
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ from pathlib import Path
 
 from bs4 import BeautifulSoup, Tag
 
-from pagesmith.brief import Brief
+from pagesmith.brief import Brief, normalise_hex
 
 PAGE_FILES = ("index.html", "styles.css", "script.js")
 REQUIRED_SECTIONS = ("hero", "features", "pricing", "testimonials", "faq")
@@ -163,7 +164,7 @@ def audit_page(page_dir: str | Path, brief: Brief) -> Report:
     checks += _seo(soup, brief)
     checks += _accessibility(soup)
     checks += _performance(soup, html, css, js)
-    checks += _content(soup, text, text_lower, brief)
+    checks += _content(soup, text, text_lower, brief, css)
 
     categories = {}
     for key, label in CATEGORY_LABELS.items():
@@ -306,16 +307,42 @@ def _performance(soup: BeautifulSoup, html: str, css: str, js: str) -> list[Chec
     return out
 
 
-def _content(soup: BeautifulSoup, text: str, text_lower: str, brief: Brief) -> list[Check]:
+def _css_colours(css: str) -> set[str]:
+    """Every hex colour in the stylesheet, normalised to #rrggbb."""
+    found = set()
+    for raw in re.findall(r"#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b", css):
+        found.add(normalise_hex(raw))
+    return found
+
+
+def _brand(css: str, brief: Brief) -> Check | None:
+    palette = brief.style.palette() if brief.style else {}
+    if not palette:
+        return None
+    used = _css_colours(css)
+    missing = {role: hex_ for role, hex_ in palette.items() if hex_ not in used}
+    detail = f"{len(palette) - len(missing)}/{len(palette)} brand colours in styles.css"
+    if missing:
+        detail += "; missing " + ", ".join(f"{role} {hex_}" for role, hex_ in missing.items())
+    return Check("brand_colours", "content", "Brand colours", 4, round(4 * (len(palette) - len(missing)) / len(palette), 2),
+                 detail, "Define the brand palette as CSS custom properties in :root (exact hex values) and use them")
+
+
+def _content(soup: BeautifulSoup, text: str, text_lower: str, brief: Brief, css: str = "") -> list[Check]:
     out = []
+    # With a brand palette in the brief, 4 points move to the colour check so Content still totals 30.
+    brand = _brand(css, brief)
+    length_pts, keyword_pts = (3, 6) if brand else (5, 8)
     words = len(_WORD.findall(text))
-    earned = 5 if 450 <= words <= 1400 else (2 if 300 <= words <= 2000 else 0)
-    out.append(Check("word_count", "content", "Copy length", 5, earned,
+    full = 450 <= words <= 1400
+    earned = length_pts if full else (length_pts * 0.4 if 300 <= words <= 2000 else 0)
+    out.append(Check("word_count", "content", "Copy length", length_pts, earned,
                      f"{words} words of visible copy", "Aim for 450 to 1,400 words of real, specific copy"))
 
     hit = [k for k in brief.keywords if _covers(text_lower, k, 1.0)]
     missing = [k for k in brief.keywords if k not in hit]
-    out.append(Check("keyword_coverage", "content", "Keyword coverage", 8, round(8 * len(hit) / len(brief.keywords), 2),
+    out.append(Check("keyword_coverage", "content", "Keyword coverage", keyword_pts,
+                     round(keyword_pts * len(hit) / len(brief.keywords), 2),
                      f"{len(hit)}/{len(brief.keywords)} keywords used" + (f"; missing: {', '.join(missing)}" if missing else ""),
                      "Work each brief keyword naturally into the copy"))
 
@@ -338,4 +365,6 @@ def _content(soup: BeautifulSoup, text: str, text_lower: str, brief: Brief) -> l
     ease = flesch_reading_ease(text)
     out.append(Check("readability", "content", "Readability", 3, 3 if ease >= 55 else (1.5 if ease >= 45 else 0),
                      f"Flesch reading ease {ease}", "Use shorter sentences and plainer words (target 55+)"))
+    if brand:
+        out.append(brand)
     return out
